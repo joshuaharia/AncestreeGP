@@ -1,0 +1,5 @@
+PersonDisease_ID,Patient_ID,Disease_ID
+1,X123,D0001
+2,X430,D0001
+3,X430,D0002
+4,X100,D0001
