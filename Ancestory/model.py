@@ -7,7 +7,7 @@ import Ancestory.tree as tree
 SCHEMA = {
     'patient': {'columns': ["Patient_ID", "Name", "Age", "Is_Dead"], 'index' :'Patient_ID'},
     'child': {'columns': ["Patient_ID", "Mother_ID", "Father_ID"], 'index': 'Patient_ID'},
-    'disease': {'columns': ["Disease_ID", "Disease_name", "Diagnose_flag"], 'index': 'Disease_ID'},
+    'disease': {'columns': ["Disease_ID", "Disease_name"], 'index': 'Disease_ID'},
     'patient_disease': {'columns':['PersonDisease_ID','Patient_ID','Disease_ID'], 'index': 'PersonDisease_ID'}
 }
 
