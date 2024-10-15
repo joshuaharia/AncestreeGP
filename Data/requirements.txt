@@ -1,7 +1,8 @@
-networkx
-altair
-nx_altair
+networkx==3.4.1
+altair==4.2.2
+nx_altair==0.1.6
 pandas
 numpy
 pydot
 graphviz
+pygraphviz
