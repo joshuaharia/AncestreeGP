@@ -9,7 +9,6 @@ dependencies:
   - pydot
   - pandas
   - numpy
-  - graphviz
   - pygraphviz
   - pip
   - pip:
