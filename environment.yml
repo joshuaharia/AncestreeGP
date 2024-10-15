@@ -1,0 +1,15 @@
+name: ancestreegp
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.9
+  - networkx
+  - altair
+  - pandas
+  - numpy
+  - pip
+  - pip:
+      - nx_altair
+      - pydot
+      - matplotlib
