@@ -122,7 +122,8 @@ def convert_child_df_to_edge_list(child_df, schema=SCHEMA):
         
         # Add a row for the mother relationship
         if mother in entry:
-            mid = entry[child]
+            mid = entry[mother]
+
             if pd.notna(mid):
                 rows.append({
                     "source": entry[mother],
