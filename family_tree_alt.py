@@ -3,7 +3,6 @@ import networkx as nx
 import nx_altair as nxa
 import altair as alt
 import pandas as pd
-import pydot
 from networkx.drawing.nx_pydot import graphviz_layout
 
 
