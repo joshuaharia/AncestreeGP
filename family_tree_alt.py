@@ -101,6 +101,11 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
     else:
         linking_df = model.filter_family_tree(selected_patient, True)
 
+    if linking_df.empty:
+        st.error('No tree can be displayed for {0}'.format(model.name(selected_patient)), icon="🚨")
+        return None
+
+
     G = nx.from_pandas_edgelist(linking_df, 'source', 'target', ['relationship'], create_using=nx.DiGraph())
 
     pos = graphviz_layout(G, prog="dot")
@@ -114,9 +119,10 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
         G.nodes[n]['name'] = model.name(n)
         G.nodes[n]['mother'] = model.name(model.fetch_mother(n))
         G.nodes[n]['father'] = model.name(model.fetch_father(n))
+        G.nodes[n]['diseases'] = ','.join(map(model.disease_name, model.diseases(n)))
         if selected_disease is not None:
             G.nodes[n][selected_disease_name] = selected_disease in model.diseases(n)
-        G.nodes[n]['selected'] = 0.5 + 0.5*(1 if n==selected_patient else 0)
+        G.nodes[n]['selected'] = n==selected_patient
     
     for e in G.edges():
         if selected_patient is not None and (e[0]==selected_patient or e[1]==selected_patient):
@@ -126,21 +132,60 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
         chart = nxa.draw_networkx(
             G=G,
             pos=pos,
-            width=10,
+            width=5,
             node_color=selected_disease_name,
             cmap='set2',
             node_tooltip=['id', 'name', 'father', 'mother', selected_disease_name],
             edge_color='selected',
             node_size=600)
+        
+        chart_edges = chart.layer[0]
+        chart_b = chart.layer[1]
+        chart_nodes = chart.layer[2]
+
+
+        # st.write('Layer' + str(len(chart.layer)))
+
+        chart_nodes = chart_nodes.encode(
+            opacity = alt.when(alt.datum.id == selected_patient).then(alt.value(1)).otherwise(alt.value(0.9)),
+            stroke=alt.when(alt.datum.id == selected_patient).then(alt.value('white')).otherwise(alt.value('black')),
+            strokeWidth=alt.when(alt.datum.id == selected_patient).then(alt.value(4)).otherwise(alt.value(2)),
+        )
+
+        chart_edges = chart_edges.encode(
+            opacity = alt.value(0.6)
+        )
+
+        chart = (chart_edges + chart_nodes).interactive()
+
+
     else:
         chart = nxa.draw_networkx(
             G=G,
             pos=pos,
-            width=10,
+            width=5,
             node_color='green',
-            node_tooltip=['id', 'name', 'father', 'mother'],
+            node_tooltip=['id', 'name', 'father', 'mother', 'diseases'],
             edge_color='cyan',
             node_size=600)
+        
+        chart_edges = chart.layer[0]
+        chart_b = chart.layer[1]
+        chart_nodes = chart.layer[2]
+
+
+        # st.write('Layer' + str(len(chart.layer)))
+
+        chart_nodes = chart_nodes.encode(
+            opacity = alt.value(0.9)
+        )
+
+        chart_edges = chart_edges.encode(
+            opacity = alt.value(0.6)
+        )
+
+        chart = (chart_edges + chart_nodes).interactive()
+        
 
     return chart
 
@@ -175,8 +220,10 @@ with tree:
 
     # Generate and display the family tree
     # family_tree = generate_family_tree()
+
     family_tree_chart = generate_family_tree(selected_disease, selected_patient)
-    st.altair_chart(family_tree_chart, use_container_width=True)
+    if family_tree_chart is not None:
+        st.altair_chart(family_tree_chart, use_container_width=True)
 
 
 
