@@ -8,6 +8,7 @@ dependencies:
   - altair
   - pandas
   - numpy
+  - matplotlib
   - pip
   - pip:
       - nx_altair
