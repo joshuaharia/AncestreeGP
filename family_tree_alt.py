@@ -190,7 +190,7 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
 
 
 
-raw, tree, test = st.tabs(["Tree Viz", "Raw", 'test3'])
+tree, raw, test = st.tabs(["Tree Viz", "Raw", 'test3'])
 
 
     
