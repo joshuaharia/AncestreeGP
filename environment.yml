@@ -12,3 +12,4 @@ dependencies:
   - pip
   - pip:
       - nx_altair
+      - pydot
