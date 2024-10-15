@@ -1,7 +1,0 @@
-networkx
-altair
-nx_altair
-pandas
-numpy
-graphviz
-pygraphviz
