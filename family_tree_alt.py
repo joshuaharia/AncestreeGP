@@ -70,11 +70,11 @@ def disease():
 @st.dialog("Assign Disease")
 def patient_disease():
     all_people = model.people()
-    patient_id = st.selectbox("Select Patient", options=all_people, index=len(all_people)-1, format_func=lambda v: patient_df.loc[v, 'Name'], key='select_patient_filter')
+    patient_id = st.selectbox("Select Patient", options=all_people, index=len(all_people)-1, format_func=model.name, key='select_patient_filter')
 
     all_diseases = model.diseases(None)
     found_diseases = model.diseases(patient_id)
-    disease_ids = st.multiselect("Select Diseases", options=all_diseases, default=found_diseases, format_func=lambda v: disease_df.loc[v, 'Disease_name'], key='select_disease_filter')
+    disease_ids = st.multiselect("Select Diseases", options=all_diseases, default=found_diseases, format_func=model.disease_name, key='select_disease_filter')
 
     if st.button("Submit"):
         model.update_diseases_for_patient(patient_id, disease_ids)
