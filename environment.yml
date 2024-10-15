@@ -6,7 +6,6 @@ dependencies:
   - python=3.9
   - networkx
   - altair
-  - pydot
   - pandas
   - numpy
   - pygraphviz
