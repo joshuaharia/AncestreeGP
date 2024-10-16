@@ -77,19 +77,20 @@ def filter_family_tree(df, child_id, schema=SCHEMA):
     return filtered_df
 
 
+# Will return the parents and children of a given patient_id in a tree (inputted as child_df)
 def find_parents_children(patient_id, child_df, schema=SCHEMA):
     child, mother, father = schema['child'], schema['mother'], schema['father']
     parents = child_df[(child_df[child] == patient_id)][[mother, father]].values.flatten()
     children = child_df[(child_df[mother] == patient_id) | (child_df[father] == patient_id)][child]
     return parents, children
 
-
+# Will return the primary degree relatives (parents and children) as a set
 def find_primary_degree_relatives(patient_id, child_df, schema=SCHEMA):
     parents, children = find_parents_children(patient_id, child_df, schema)
     primary_relatives = set(parents).union(set(children))
     return primary_relatives
 
-
+# Will return the siblings and grandchildren of a given patient_id in a tree (inputted as a child_df)
 def find_siblings_grandchildren(patient_id, child_df, schema=SCHEMA, include_parents_children=False):
     child, mother, father = schema['child'], schema['mother'], schema['father']
     parents, children = find_parents_children(patient_id, child_df)
@@ -101,17 +102,17 @@ def find_siblings_grandchildren(patient_id, child_df, schema=SCHEMA, include_par
         return siblings, grandchildren
     return siblings, grandchildren, parents, children
 
-
+# Will return the secondary degree relatives of a given patient_id in a tree (inputted as child_df)
 def find_secondary_degree_relatives(patient_id, child_df, schema=SCHEMA):
     siblings, grandchildren = find_siblings_grandchildren(patient_id, child_df, schema)
     secondary_relatives = set(siblings).union(set(grandchildren))
     return secondary_relatives
 
 
-
+# Important when drawing networks
+# Edge list represented as list of dicts [{'source': node_id, 'target': node_id},...]
 def convert_child_df_to_edge_list(child_df, schema=SCHEMA):
     child, mother, father = schema['child'], schema['mother'], schema['father']
-
     # Convert the Child_df  to a list of dictionaries
     linking_data = child_df.to_dict(orient='records')
 
@@ -145,67 +146,3 @@ def convert_child_df_to_edge_list(child_df, schema=SCHEMA):
     linking_df = pd.DataFrame(rows)
     
     return linking_df
-
-
-
-
-# Function to find relatives with a specific disease
-def count_relatives_with_disease(patient_id, disease_id, child_df, patient_disease_df):
-    # Step 1: Check if the patient themselves has the disease
-    patient_has_disease = patient_id in patient_disease_df[
-        patient_disease_df["Disease_ID"] == disease_id
-    ]["Patient_ID"].values
-
-    # Step 2: Find primary relatives (parents and children)
-    parents = child_df[(child_df["Patient_ID"] == patient_id)][["Mother_ID", "Father_ID"]].values.flatten()
-    children = child_df[(child_df["Mother_ID"] == patient_id) | (child_df["Father_ID"] == patient_id)]["Patient_ID"]
-
-    # Step 3: Find secondary relatives (siblings and grandchildren)
-    siblings = child_df[(child_df["Mother_ID"].isin(parents)) & 
-                        (child_df["Father_ID"].isin(parents))]["Patient_ID"]
-    grandchildren = child_df[child_df["Mother_ID"].isin(children) | child_df["Father_ID"].isin(children)]["Patient_ID"]
-
-    # Combine all relatives into sets to avoid duplication
-    primary_relatives = set(parents).union(set(children))
-    secondary_relatives = set(siblings).union(set(grandchildren))
-
-    # Step 4: Filter relatives who have the given disease
-    diseased_relatives = patient_disease_df[patient_disease_df["Disease_ID"] == disease_id]["Patient_ID"]
-
-    # Count primary and secondary relatives with the disease
-    primary_with_disease = len(primary_relatives.intersection(diseased_relatives))
-    secondary_with_disease = len(secondary_relatives.intersection(diseased_relatives))
-
-    # Include the patient in the final count if they have the disease
-    total_with_disease = primary_with_disease + secondary_with_disease
-
-    patient_count = 0
-    if patient_has_disease:
-        patient_count = 1
-        total_with_disease += 0
-
-    primary_with_disease = primary_with_disease+patient_count
-    secondary_with_disease = secondary_with_disease - patient_count
-
-    result = pd.Series({
-        "Does the patient have the disease?": 'YES' if patient_has_disease else 'NO',
-        "Number of primary degree relatives with disease": primary_with_disease,
-        "Number of secondary degree relatives with disease": secondary_with_disease,
-        "Total number of relatives with disease": total_with_disease
-    })
-
-    verdict = 'Low Risk'
-    
-    if patient_has_disease:
-        verdict = ':red[Get treatment soon]'
-    elif primary_with_disease > 0:
-        verdict = ':red[Strong] reason to investigate'
-    elif secondary_with_disease > 0:
-        verdict = ':orange[Possible] reason to investigate'
-    else:
-        verdict = ':green[Low risk]'
-
-    return result, verdict
-
-
-
