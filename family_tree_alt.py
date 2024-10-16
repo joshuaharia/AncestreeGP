@@ -15,16 +15,27 @@ def set_up_model():
 
 model = set_up_model()
 
+def validate_person(id, name):
+    messages = []
+    if id is None or len(id)==0:
+        messages += ['Missing ID']
+    if name is None or len(name)==0:
+        messages += ['Missing name']
+    return len(messages)==0, '; '.join(messages)
 
 @st.dialog("Enter Person")
 def person():
     nhs_number = st.text_input("PersonID (NHS Number)")
     name = st.text_input("Name")
-    age = st.number_input("Age", 0, 200)
+    age = st.number_input("Age [if never died]", 0, 300)
     is_dead = st.toggle('Is Dead')
+    valid, message = validate_person(nhs_number, name)
     if st.button("Submit"):
-        model.update_patient(nhs_number, name, age, is_dead)
-        st.rerun()
+        if valid:
+            model.update_patient(nhs_number, name, age, is_dead)
+            st.rerun()
+        else:
+            st.error('Problem with: ' + message)
 
 
 @st.dialog("Enter Child")
@@ -33,15 +44,21 @@ def child():
 
     patient_id = st.selectbox("Select Child", options=all_people, index=len(all_people)-1, format_func=model.name)
 
-    # Mother or Father can't be itself
-    all_people = [a for a in all_people if a != patient_id]
+    # Mother or Father can't be itself and has to be older than patient_id
+    patient_age = model.age(patient_id)
+
+    min_age_to_have_child = 10
+    all_people = [a for a in all_people if a != patient_id and model.age(a) > patient_age + min_age_to_have_child]
 
     # Mother or Father can't be a descendant (prevent cycles)
     descendants = model.find_descendants(patient_id)
     all_people = list(set(all_people) - set(descendants))
+
    
     mother_index, father_index = None, None
     actual_mother, actual_father = model.fetch_mother(patient_id), model.fetch_father(patient_id)
+
+
 
     if actual_mother is not None and pd.notna(actual_mother):
         mother_index = all_people.index(actual_mother)
@@ -59,13 +76,29 @@ def child():
         model.update_child(patient_id, mother, father)
         st.rerun()
 
+
+def validate_disease(id, name):
+    messages = []
+    if id is None or len(id)==0:
+        messages += ['Missing ID']
+    if name is None or len(name)==0:
+        messages += ['Missing name']
+    return len(messages)==0, '; '.join(messages)
+
+
 @st.dialog("Enter Disease")
 def disease():
     disease_ID = st.text_input("Enter disease code")
     ddisease_name = st.text_input("Enter disease name")
+
+    valid, message = validate_disease(disease_ID, ddisease_name)
     if st.button("Submit"):
-        model.update_disease(disease_ID,ddisease_name)
-        st.rerun()
+        if valid:
+            model.update_disease(disease_ID,ddisease_name)
+            st.rerun()
+        else:
+            st.error('Problem with: ' + message)
+
 
 @st.dialog("Assign Disease")
 def patient_disease():
@@ -75,7 +108,6 @@ def patient_disease():
     all_diseases = model.diseases(None)
     found_diseases = model.diseases(patient_id)
     disease_ids = st.multiselect("Select Diseases", options=all_diseases, default=found_diseases, format_func=model.disease_name, key='select_disease_filter')
-
     if st.button("Submit"):
         model.update_diseases_for_patient(patient_id, disease_ids)
         st.rerun()
@@ -115,17 +147,22 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
     # Add attributes to nodes
     for n in G.nodes():
         G.nodes[n]['id'] = n
-        G.nodes[n]['name'] = model.name(n)
-        G.nodes[n]['mother'] = model.name(model.fetch_mother(n))
-        G.nodes[n]['father'] = model.name(model.fetch_father(n))
-        G.nodes[n]['diseases'] = ','.join(map(model.disease_name, model.diseases(n)))
+        G.nodes[n]['name'] = model.name(n, 'Unknown')
+        G.nodes[n]['is_dead'] = 'Yes' if model.is_dead(n) else 'No'
+        G.nodes[n]['age'] = model.age(n)
+        G.nodes[n]['mother'] = model.fetch_parent_name(n, True)
+        G.nodes[n]['father'] = model.fetch_parent_name(n, False)
+        disease_str = ', '.join(map(model.disease_name, model.diseases(n)))
+        G.nodes[n]['diseases'] = disease_str
         if selected_disease is not None:
-            G.nodes[n][selected_disease_name] = selected_disease in model.diseases(n)
+            G.nodes[n][selected_disease_name] = 'Yes' if selected_disease in model.diseases(n) else 'No'
         G.nodes[n]['selected'] = n==selected_patient
     
     for e in G.edges():
         if selected_patient is not None and (e[0]==selected_patient or e[1]==selected_patient):
             G.edges[e[0], e[1]]['selected'] = True
+
+    include_disease = st.toggle('Highlight Diseases',disabled=selected_disease is not None)
 
     if selected_disease is not None:
         chart = nxa.draw_networkx(
@@ -134,7 +171,7 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
             width=5,
             node_color=selected_disease_name,
             cmap='set2',
-            node_tooltip=['id', 'name', 'father', 'mother', selected_disease_name],
+            node_tooltip=['id', 'name', 'age', 'is_dead', 'father', 'mother', selected_disease_name],
             edge_color='selected',
             node_size=600)
         
@@ -163,8 +200,8 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
             G=G,
             pos=pos,
             width=5,
-            node_color='green',
-            node_tooltip=['id', 'name', 'father', 'mother', 'diseases'],
+            node_color='diseases' if include_disease else 'cyan',
+            node_tooltip=['id', 'name', 'age', 'is_dead', 'father', 'mother', 'diseases'],
             edge_color='cyan',
             node_size=600)
         
@@ -176,7 +213,11 @@ def generate_family_tree(selected_disease=None, selected_patient=None):
         # st.write('Layer' + str(len(chart.layer)))
 
         chart_nodes = chart_nodes.encode(
-            opacity = alt.value(0.9)
+            opacity = alt.when(alt.datum.is_dead == 'Yes').then(alt.value(0.9)).otherwise(alt.value(1)),
+            stroke=alt.when(alt.datum.is_dead == 'Yes').then(alt.value('gold')).otherwise(alt.value('cyan')),
+            strokeWidth=alt.when(alt.datum.is_dead == 'Yes').then(alt.value(4)).otherwise(alt.value(2)),
+
+            
         )
 
         chart_edges = chart_edges.encode(
@@ -217,14 +258,14 @@ with tree:
 
 
 with raw:
-    st.header('Patients')
-    st.write(model.fetch_data('patient'))
-    st.header('Parents')
-    st.write(model.fetch_data('child'))
-    st.header('Disease')
-    st.write(model.fetch_data('disease'))
-    st.header('Patient with Diseases')
-    st.write(model.fetch_data('patient_disease'))
+
+    with st.expander('Advanced'):
+        display_table = model.create_patient_summary_table()
+        cols = display_table.columns
+        default = ['Patient_ID', 'Name', 'Age', 'Is_Dead', 'Mother_name', 'Father_name', 'Diseases_names']
+        columns = st.multiselect('Select columns', cols, default)
+
+    st.write(display_table[columns])
 
 #***********************************************************
 #                                                          *
