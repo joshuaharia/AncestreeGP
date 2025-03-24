@@ -18,6 +18,19 @@ The app is designed to:
 
 The **AncestreeGP** demo aims to bridge the gap between scattered EHR data and comprehensive family medical history, empowering clinicians and patients alike to make more informed decisions.
 
+## Contributors
+John
+
+Joshua
+
+Lucy
+
+Marco
+
+Kim
+
+Melvin
+
 ## Live Demo
 Explore the live demo here: [AncestreeGP App](https://ancestreegp.streamlit.app/)
 
